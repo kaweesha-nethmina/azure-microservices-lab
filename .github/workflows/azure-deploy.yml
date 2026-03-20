@@ -26,13 +26,11 @@ jobs:
         run: |
           cd api
           npm install
-          npm run build
 
       - name: Build Gateway
         run: |
           cd gateway
           npm install
-          npm run build
 
       - name: Build Frontend
         run: |
