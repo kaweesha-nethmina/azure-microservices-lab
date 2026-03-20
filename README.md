@@ -167,8 +167,20 @@ az ad sp create-for-rbac \
   --name "github-actions" \
   --role Contributor \
   --scopes /subscriptions/{subscription-id} \
-  --json-auth
+  --sdk-auth
 ```
+
+### Azure AD permission troubleshooting
+If you see errors like:
+- `Directory permission is needed for the current user to register the application`
+- `Original error: Insufficient privileges to complete the operation`
+
+Then your tenant policy is blocking app registration. Fix it by:
+- Azure AD → User settings → App registrations → `Users can register applications` = `Yes`, or
+- Have an admin create the service principal for you (using the same command), or
+- Remove/exclude your user from any `Deny assignment` applying at tenant root.
+
+Once service principal creation works, store the returned JSON in `AZURE_CREDENTIALS` and rerun the pipeline.
 
 3. **Push to main branch** to trigger deployment:
 ```bash
