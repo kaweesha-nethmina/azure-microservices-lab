@@ -60,6 +60,10 @@ jobs:
           curl -fsSL https://aka.ms/install-azd.sh | bash
           echo "$HOME/.azd/bin" >> $GITHUB_PATH
 
+      - name: Login to Azure Developer CLI
+        run: |
+          azd auth login --use-az-cli-auth
+
       - name: Deploy to Dev
         run: |
           azd deploy --no-prompt --environment dev
