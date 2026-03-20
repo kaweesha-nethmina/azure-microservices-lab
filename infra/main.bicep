@@ -1,6 +1,11 @@
 param location string = 'southeastasia'
-param environment string = 'prod'
+param environment string = 'dev'
 param appName string = 'azure-microservices'
+param frontendRepoUrl string = 'https://github.com/kaweesha-nethmina/azure-microservices-lab'
+param frontendBranch string = 'main'
+param frontendAppLocation string = 'frontend'
+param frontendOutputLocation string = ''
+param frontendBuildCommand string = ''
 
 var resourceGroupName = '${appName}-${environment}-rg'
 var containerRegistryName = '${replace(appName, '-', '')}${environment}acr'
@@ -113,12 +118,12 @@ resource staticWebApp 'Microsoft.Web/staticSites@2021-03-01' = {
     tier: 'Free'
   }
   properties: {
-    repositoryUrl: 'https://github.com/yourusername/yourrepo'
-    branch: 'main'
+    repositoryUrl: frontendRepoUrl
+    branch: frontendBranch
     buildProperties: {
-      appLocation: 'frontend'
-      outputLocation: ''
-      appBuildCommand: ''
+      appLocation: frontendAppLocation
+      outputLocation: frontendOutputLocation
+      appBuildCommand: frontendBuildCommand
     }
   }
 }
