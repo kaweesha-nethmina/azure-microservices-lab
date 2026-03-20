@@ -55,11 +55,9 @@ jobs:
         run: |
           az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Install Azure Developer CLI
+      - name: Deploy infra using Bicep
         run: |
-          curl -fsSL https://aka.ms/install-azd.sh | bash
-          echo "$HOME/.azd/bin" >> $GITHUB_PATH
-
-      - name: Deploy to Dev
-        run: |
-          azd deploy --no-prompt --environment dev
+          az deployment group create \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --template-file infra/main.bicep \
+            --parameters @infra/parameters.json
