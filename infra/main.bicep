@@ -7,13 +7,11 @@ param frontendAppLocation string = 'frontend'
 param frontendOutputLocation string = ''
 param frontendBuildCommand string = ''
 
-var resourceGroupName = '${appName}-${environment}-rg'
 var containerRegistryName = '${replace(appName, '-', '')}${environment}acr'
 var containerEnvName = '${appName}-${environment}-env'
 var gatewayAppName = '${appName}-${environment}-gateway'
 var apiAppName = '${appName}-${environment}-api'
 var frontendAppName = '${appName}-${environment}-frontend'
-var acrLoginServer = containerRegistry.properties.loginServer
 
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2021-09-01' = {
   name: containerRegistryName
@@ -47,7 +45,7 @@ resource gatewayContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
       containers: [
         {
           name: 'gateway'
-          image: '${acrLoginServer}/gateway:v1'
+          image: '${containerRegistryName}.azurecr.io/gateway:v1'
           resources: {
             cpu: 0.5
             memory: '1Gi'
@@ -87,7 +85,7 @@ resource apiContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
       containers: [
         {
           name: 'api'
-          image: '${acrLoginServer}/api:v1'
+          image: '${containerRegistryName}.azurecr.io/api:v1'
           resources: {
             cpu: 0.5
             memory: '1Gi'
