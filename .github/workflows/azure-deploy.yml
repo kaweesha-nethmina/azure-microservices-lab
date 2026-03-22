@@ -62,7 +62,7 @@ jobs:
         run: |
           RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP || 'microservices-rg' }}"
           echo "Creating/verifying resource group: $RESOURCE_GROUP"
-          az group create --name "$RESOURCE_GROUP" --location eastus
+          az group create --name "$RESOURCE_GROUP" --location eastus2
 
       - name: Get or Create ACR
         id: acr-setup
@@ -74,17 +74,28 @@ jobs:
           ACR_NAME=$(az acr list --resource-group "$RESOURCE_GROUP" --query '[0].name' -o tsv 2>/dev/null || echo "")
           
           if [ -z "$ACR_NAME" ]; then
-            echo "No ACR found. Creating new ACR..."
+            echo "No ACR found. Creating new ACR in eastus2..."
             # Generate unique name for ACR
             ACR_NAME="acr$(echo $RANDOM | md5sum | head -c 8)"
-            echo "Creating ACR: $ACR_NAME"
-            az acr create --resource-group "$RESOURCE_GROUP" \
+            echo "Creating ACR: $ACR_NAME in eastus2 region"
+            
+            # Try to create ACR, catch region policy errors
+            if ! az acr create --resource-group "$RESOURCE_GROUP" \
               --name "$ACR_NAME" \
               --sku Basic \
-              --admin-enabled true
-            echo "ACR created successfully"
+              --admin-enabled true \
+              --location eastus2 2>&1; then
+              
+              echo "::error::Failed to create ACR in eastus2. This may be due to subscription region restrictions."
+              echo "::error::Please manually create an ACR in your allowed region and set AZURE_ACR_NAME secret"
+              exit 1
+            fi
+            echo "✅ ACR created successfully in eastus2"
           else
             echo "✅ Found existing ACR: $ACR_NAME"
+            # Check if we need to get location from existing ACR
+            ACR_LOCATION=$(az acr show --name "$ACR_NAME" --query location -o tsv)
+            echo "📍 ACR is in region: $ACR_LOCATION"
           fi
           
           echo "ACR_NAME=$ACR_NAME" >> $GITHUB_ENV

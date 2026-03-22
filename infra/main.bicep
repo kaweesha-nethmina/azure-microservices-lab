@@ -1,4 +1,4 @@
-param location string = 'eastus'
+param location string = 'eastus2'
 param environment string = 'dev'
 param appName string = 'azure-microservices'
 param frontendRepoUrl string = 'https://github.com/kaweesha-nethmina/azure-microservices-lab'
