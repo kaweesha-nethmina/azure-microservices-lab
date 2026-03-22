@@ -61,54 +61,26 @@ jobs:
       - name: Ensure resource group exists
         run: |
           RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP || 'microservices-rg' }}"
-          echo "Creating/verifying resource group: $RESOURCE_GROUP"
-          az group create --name "$RESOURCE_GROUP" --location eastus2
+          echo "Verifying resource group: $RESOURCE_GROUP"
+          az group show --name "$RESOURCE_GROUP" > /dev/null || (echo "Resource group not found!" && exit 1)
+          echo "✅ Resource group exists in: $(az group show --name "$RESOURCE_GROUP" --query location -o tsv)"
 
-      - name: Get or Create ACR
+      - name: Get ACR Details
         id: acr-setup
         run: |
           RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP || 'microservices-rg' }}"
-          echo "Looking for ACR in resource group: $RESOURCE_GROUP"
-          
-          # Try to find existing ACR
-          ACR_NAME=$(az acr list --resource-group "$RESOURCE_GROUP" --query '[0].name' -o tsv 2>/dev/null || echo "")
-          
-          if [ -z "$ACR_NAME" ]; then
-            echo "No ACR found. Creating new ACR in eastus2..."
-            # Generate unique name for ACR
-            ACR_NAME="acr$(echo $RANDOM | md5sum | head -c 8)"
-            echo "Creating ACR: $ACR_NAME in eastus2 region"
-            
-            # Try to create ACR, catch region policy errors
-            if ! az acr create --resource-group "$RESOURCE_GROUP" \
-              --name "$ACR_NAME" \
-              --sku Basic \
-              --admin-enabled true \
-              --location eastus2 2>&1; then
-              
-              echo "::error::Failed to create ACR in eastus2. This may be due to subscription region restrictions."
-              echo "::error::Please manually create an ACR in your allowed region and set AZURE_ACR_NAME secret"
-              exit 1
-            fi
-            echo "✅ ACR created successfully in eastus2"
-          else
-            echo "✅ Found existing ACR: $ACR_NAME"
-            # Check if we need to get location from existing ACR
-            ACR_LOCATION=$(az acr show --name "$ACR_NAME" --query location -o tsv)
-            echo "📍 ACR is in region: $ACR_LOCATION"
-          fi
-          
-          echo "ACR_NAME=$ACR_NAME" >> $GITHUB_ENV
+          ACR_NAME="sliitmicroregistrykaweesha"
+
+          echo "Using existing ACR: $ACR_NAME"
+
           ACR_LOGIN_SERVER=$(az acr show --name "$ACR_NAME" --query loginServer -o tsv)
-          echo "✅ ACR Login Server: $ACR_LOGIN_SERVER" >> $GITHUB_STEP_SUMMARY
+          ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv)
+
+          echo "ACR_NAME=$ACR_NAME" >> $GITHUB_ENV
           echo "ACR_LOGIN_SERVER=$ACR_LOGIN_SERVER" >> $GITHUB_ENV
-          
-          # Get ACR password
-          az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv > /tmp/acr_password
-          echo "ACR_PASSWORD=$(cat /tmp/acr_password)" >> $GITHUB_ENV
-          rm /tmp/acr_password
-          
-          echo "✅ ACR credentials configured" >> $GITHUB_STEP_SUMMARY
+          echo "ACR_PASSWORD=$ACR_PASSWORD" >> $GITHUB_ENV
+
+          echo "✅ ACR Login Server: $ACR_LOGIN_SERVER" >> $GITHUB_STEP_SUMMARY
 
       - name: Login to ACR
         run: |
