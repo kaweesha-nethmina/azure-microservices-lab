@@ -60,12 +60,28 @@ jobs:
 
       - name: Get ACR credentials
         run: |
-          ACR_NAME=$(az acr list --resource-group "${{ secrets.AZURE_RESOURCE_GROUP || 'ctse' }}" --query '[0].name' -o tsv)
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP || 'microservices-rg' }}"
+          echo "Using resource group: $RESOURCE_GROUP"
+          
+          # Get ACR name from the deployment or list
+          ACR_NAME=$(az acr list --resource-group "$RESOURCE_GROUP" --query '[0].name' -o tsv)
+          
+          if [ -z "$ACR_NAME" ]; then
+            echo "No ACR found in resource group. Trying to get from bicep output..."
+            # Try to get it from a previous deployment
+            ACR_NAME=$(az deployment group show --resource-group "$RESOURCE_GROUP" --name main 2>/dev/null --query properties.outputs.containerRegistryLoginServer.value -o tsv | cut -d'.' -f1)
+          fi
+          
+          if [ -z "$ACR_NAME" ]; then
+            echo "Error: Could not find Azure Container Registry in resource group '$RESOURCE_GROUP'"
+            exit 1
+          fi
+          
           echo "ACR_NAME=$ACR_NAME" >> $GITHUB_ENV
-          ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer -o tsv)
+          ACR_LOGIN_SERVER=$(az acr show --name "$ACR_NAME" --query loginServer -o tsv)
           echo "ACR_LOGIN_SERVER=$ACR_LOGIN_SERVER" >> $GITHUB_ENV
           
-          az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv > /tmp/acr_password
+          az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv > /tmp/acr_password
           echo "ACR_PASSWORD=$(cat /tmp/acr_password)" >> $GITHUB_ENV
           rm /tmp/acr_password
 
@@ -85,11 +101,14 @@ jobs:
 
       - name: Ensure resource group exists
         run: |
-          az group create --name "${{ secrets.AZURE_RESOURCE_GROUP || 'ctse' }}" --location eastasia
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP || 'microservices-rg' }}"
+          echo "Creating/verifying resource group: $RESOURCE_GROUP"
+          az group create --name "$RESOURCE_GROUP" --location eastasia
 
       - name: Deploy infra using Bicep
         run: |
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP || 'microservices-rg' }}"
           az deployment group create \
-            --resource-group "${{ secrets.AZURE_RESOURCE_GROUP || 'ctse' }}" \
+            --resource-group "$RESOURCE_GROUP" \
             --template-file infra/main.bicep \
             --parameters @infra/parameters.json
