@@ -57,7 +57,7 @@ jobs:
 
       - name: Ensure resource group exists
         run: |
-          az group create --name "${{ secrets.AZURE_RESOURCE_GROUP || 'ctse' }}" --location eastus2
+          az group create --name "${{ secrets.AZURE_RESOURCE_GROUP || 'ctse' }}" --location eastasia
 
       - name: Deploy infra using Bicep
         run: |
