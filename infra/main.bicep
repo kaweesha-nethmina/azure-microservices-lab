@@ -47,7 +47,7 @@ resource gatewayContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
           name: 'gateway'
           image: '${containerRegistryName}.azurecr.io/gateway:v1'
           resources: {
-            cpu: 0.5
+            cpu: 1
             memory: '1Gi'
           }
           env: [
@@ -87,7 +87,7 @@ resource apiContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
           name: 'api'
           image: '${containerRegistryName}.azurecr.io/api:v1'
           resources: {
-            cpu: 0.5
+            cpu: 1
             memory: '1Gi'
           }
           env: [
