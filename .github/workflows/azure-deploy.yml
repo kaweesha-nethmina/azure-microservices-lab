@@ -58,32 +58,46 @@ jobs:
         run: |
           az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get ACR credentials
+      - name: Ensure resource group exists
         run: |
           RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP || 'microservices-rg' }}"
-          echo "Using resource group: $RESOURCE_GROUP"
+          echo "Creating/verifying resource group: $RESOURCE_GROUP"
+          az group create --name "$RESOURCE_GROUP" --location eastus
+
+      - name: Get or Create ACR
+        id: acr-setup
+        run: |
+          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP || 'microservices-rg' }}"
+          echo "Looking for ACR in resource group: $RESOURCE_GROUP"
           
-          # Get ACR name from the deployment or list
-          ACR_NAME=$(az acr list --resource-group "$RESOURCE_GROUP" --query '[0].name' -o tsv)
+          # Try to find existing ACR
+          ACR_NAME=$(az acr list --resource-group "$RESOURCE_GROUP" --query '[0].name' -o tsv 2>/dev/null || echo "")
           
           if [ -z "$ACR_NAME" ]; then
-            echo "No ACR found in resource group. Trying to get from bicep output..."
-            # Try to get it from a previous deployment
-            ACR_NAME=$(az deployment group show --resource-group "$RESOURCE_GROUP" --name main 2>/dev/null --query properties.outputs.containerRegistryLoginServer.value -o tsv | cut -d'.' -f1)
-          fi
-          
-          if [ -z "$ACR_NAME" ]; then
-            echo "Error: Could not find Azure Container Registry in resource group '$RESOURCE_GROUP'"
-            exit 1
+            echo "No ACR found. Creating new ACR..."
+            # Generate unique name for ACR
+            ACR_NAME="acr$(echo $RANDOM | md5sum | head -c 8)"
+            echo "Creating ACR: $ACR_NAME"
+            az acr create --resource-group "$RESOURCE_GROUP" \
+              --name "$ACR_NAME" \
+              --sku Basic \
+              --admin-enabled true
+            echo "ACR created successfully"
+          else
+            echo "✅ Found existing ACR: $ACR_NAME"
           fi
           
           echo "ACR_NAME=$ACR_NAME" >> $GITHUB_ENV
           ACR_LOGIN_SERVER=$(az acr show --name "$ACR_NAME" --query loginServer -o tsv)
+          echo "✅ ACR Login Server: $ACR_LOGIN_SERVER" >> $GITHUB_STEP_SUMMARY
           echo "ACR_LOGIN_SERVER=$ACR_LOGIN_SERVER" >> $GITHUB_ENV
           
+          # Get ACR password
           az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv > /tmp/acr_password
           echo "ACR_PASSWORD=$(cat /tmp/acr_password)" >> $GITHUB_ENV
           rm /tmp/acr_password
+          
+          echo "✅ ACR credentials configured" >> $GITHUB_STEP_SUMMARY
 
       - name: Login to ACR
         run: |
@@ -98,12 +112,6 @@ jobs:
         run: |
           docker build --platform linux/amd64 -t $ACR_LOGIN_SERVER/gateway:v1 ./gateway
           docker push $ACR_LOGIN_SERVER/gateway:v1
-
-      - name: Ensure resource group exists
-        run: |
-          RESOURCE_GROUP="${{ secrets.AZURE_RESOURCE_GROUP || 'microservices-rg' }}"
-          echo "Creating/verifying resource group: $RESOURCE_GROUP"
-          az group create --name "$RESOURCE_GROUP" --location eastasia
 
       - name: Deploy infra using Bicep
         run: |
