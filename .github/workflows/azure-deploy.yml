@@ -44,6 +44,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Azure Login
         uses: azure/login@v2
         with:
@@ -54,6 +57,31 @@ jobs:
       - name: Set Azure Subscription
         run: |
           az account set --subscription ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get ACR credentials
+        run: |
+          ACR_NAME=$(az acr list --resource-group "${{ secrets.AZURE_RESOURCE_GROUP || 'ctse' }}" --query '[0].name' -o tsv)
+          echo "ACR_NAME=$ACR_NAME" >> $GITHUB_ENV
+          ACR_LOGIN_SERVER=$(az acr show --name $ACR_NAME --query loginServer -o tsv)
+          echo "ACR_LOGIN_SERVER=$ACR_LOGIN_SERVER" >> $GITHUB_ENV
+          
+          az acr credential show --name $ACR_NAME --query "passwords[0].value" -o tsv > /tmp/acr_password
+          echo "ACR_PASSWORD=$(cat /tmp/acr_password)" >> $GITHUB_ENV
+          rm /tmp/acr_password
+
+      - name: Login to ACR
+        run: |
+          echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_NAME --password-stdin
+
+      - name: Build and push API image
+        run: |
+          docker build --platform linux/amd64 -t $ACR_LOGIN_SERVER/api:v1 ./api
+          docker push $ACR_LOGIN_SERVER/api:v1
+
+      - name: Build and push Gateway image
+        run: |
+          docker build --platform linux/amd64 -t $ACR_LOGIN_SERVER/gateway:v1 ./gateway
+          docker push $ACR_LOGIN_SERVER/gateway:v1
 
       - name: Ensure resource group exists
         run: |

@@ -13,6 +13,7 @@ var containerEnvName = '${appName}-${environment}-env'
 var gatewayAppName = '${appName}-${environment}-gateway'
 var apiAppName = '${appName}-${environment}-api'
 var frontendAppName = '${appName}-${environment}-frontend'
+var acrLoginServer = containerRegistry.properties.loginServer
 
 resource containerRegistry 'Microsoft.ContainerRegistry/registries@2021-09-01' = {
   name: containerRegistryName
@@ -28,9 +29,6 @@ resource containerRegistry 'Microsoft.ContainerRegistry/registries@2021-09-01' =
 resource containerEnvironment 'Microsoft.App/managedEnvironments@2022-03-01' = {
   name: containerEnvName
   location: location
-  properties: {
-    daprAIPCEndpoint: 'http://localhost:50001'
-  }
 }
 
 resource gatewayContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
@@ -49,10 +47,10 @@ resource gatewayContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
       containers: [
         {
           name: 'gateway'
-          image: '${containerRegistry.properties.loginServer}/gateway:latest'
+          image: '${acrLoginServer}/gateway:v1'
           resources: {
-            cpu: '0.5'
-            memory: '1.0Gi'
+            cpu: 0.5
+            memory: '1Gi'
           }
           env: [
             {
@@ -89,10 +87,10 @@ resource apiContainerApp 'Microsoft.App/containerApps@2022-03-01' = {
       containers: [
         {
           name: 'api'
-          image: '${containerRegistry.properties.loginServer}/api:latest'
+          image: '${acrLoginServer}/api:v1'
           resources: {
-            cpu: '0.5'
-            memory: '1.0Gi'
+            cpu: 0.5
+            memory: '1Gi'
           }
           env: [
             {
